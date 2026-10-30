@@ -1,0 +1,28 @@
+// Illustrative integration with an existing consumer.Subscribe API.
+// Adapt cctx.Context() to the actual context accessor in your codebase.
+
+converter := func(ev *events.Event) (projection.Event, error) {
+	if ev == nil {
+		return projection.Event{}, errors.New("nil event")
+	}
+	return projection.Event{
+		ID:       ev.GetId(),
+		Category: extractCategory(ev), // replace with actual protobuf field
+		// EventTime: extractEventTime(ev),
+		// Payload:   serializePayload(ev),
+	}, nil
+}
+
+consumer.Subscribe(topic, &events.Event{},
+	func(msg proto.Message, cctx *ctx.Context) error {
+		ev, ok := msg.(*events.Event)
+		if !ok {
+			return fmt.Errorf("unexpected message type %T", msg)
+		}
+		pe, err := converter(ev)
+		if err != nil {
+			return fmt.Errorf("convert event: %w", err)
+		}
+		return projector.Project(cctx.Context(), pe) // use actual context accessor
+	},
+)
